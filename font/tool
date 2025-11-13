@@ -152,13 +152,18 @@ def cmd_new_template(tpl_file):
 def cmd_test(font_file, remap_file, message):
     with open(font_file, 'r', encoding='utf-8') as file:
         font = json.load(file)
-    with open(remap_file, 'r', encoding='utf-8') as file:
-        remap = json.load(file)
+
+    try:
+        with open(remap_file, 'r', encoding='utf-8') as file:
+            remap = json.load(file)
+    except FileNotFoundError:
+        debug('Remap file', remap_file, 'not found')
+        remap = {}
 
     out = b''
     for c in message:
         c = remap.get(c, c);
-        glyph = font.get(c, font['▯'])
+        glyph = font.get(c, font.get('▯', ''))
         glyph = bytearray.fromhex(glyph)
 
         if out:
