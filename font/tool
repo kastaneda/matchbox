@@ -26,8 +26,7 @@ class Grid:
         return x, y
 
 
-def print_vlsb(glyph, dots_y):
-    glyph = bytearray.fromhex(glyph)
+def print_vlsb(glyph, dots_y=8):
     for y in range(dots_y):
         line = ''
         for c in glyph:
@@ -39,7 +38,7 @@ def print_vlsb(glyph, dots_y):
 
 
 def cmd_read_font(font_file, tpl_files):
-    font = {}
+    font = {' ': '000000'}
     for tpl_file in tpl_files:
         tpl_file = Path(tpl_file).with_suffix('.json')
         print('Reading template file', tpl_file)
@@ -74,7 +73,7 @@ def cmd_read_font(font_file, tpl_files):
                     if not glyph_end:
                         glyph_bytes += '%02x' % glyph_byte
                     dot_x += 1
-                print_vlsb(glyph_bytes, grid.dots_y)
+                print_vlsb(bytearray.fromhex(glyph_bytes), grid.dots_y)
                 font[glyph] = glyph_bytes
 
     print('Writing font file', font_file)
@@ -150,10 +149,35 @@ def cmd_new_template(tpl_file):
         json.dump(tpl, file, ensure_ascii=False, indent=4)    
 
 
+def cmd_test(font_file, remap_file, message):
+    with open(font_file, 'r', encoding='utf-8') as file:
+        font = json.load(file)
+    with open(remap_file, 'r', encoding='utf-8') as file:
+        remap = json.load(file)
+
+    out = b''
+    for c in message:
+        c = remap.get(c, c);
+        glyph = font.get(c, font['▯'])
+        glyph = bytearray.fromhex(glyph)
+
+        if out:
+            left = out[-1]
+            right = glyph[0]
+            if left&right or (left>>1)&right or left&(right>>1):
+                out += b'\x00' + glyph
+            else:
+                out += glyph
+        else:
+            out = glyph
+
+    print_vlsb(out)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--font', default='font.json', metavar='file')
+    parser.add_argument('--remap', default='remap.json', metavar='file')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--read', nargs='+', metavar='tpl', 
         help='Read font from images, save to font file')
@@ -161,11 +185,17 @@ if __name__ == '__main__':
         help='Redraw image glyphs using font')
     group.add_argument('--new', metavar='tpl.json',
         help='Create new empty image template')
+    group.add_argument('--test', metavar='msg',
+        help='Print something the font')
     args = parser.parse_args()
+    if args.test:
+        args.verbose = True
     debug = print if args.verbose else lambda *args, **kwarg: None
     if args.read:
         cmd_read_font(args.font, args.read)
     elif args.write:
         cmd_write_image(args.font, args.write)
-    else:
+    elif args.new:
         cmd_new_template(args.new)
+    else:
+        cmd_test(args.font, args.remap, args.test)
