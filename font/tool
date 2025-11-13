@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+from pathlib import Path
+from PIL import Image, ImageDraw
+
+
+class Grid:
+    def __init__(self, tpl_grid, lines):
+        self.dots_x, self.dots_y = tpl_grid['dots']
+        self.dot_size = tpl_grid['dot_size']
+        self.gap = tpl_grid['gap']
+        self.lines = lines
+
+    def img_size(self):
+        width = self.dot_size*self.dots_x + self.gap*2
+        height = (self.dot_size*self.dots_y*self.lines
+                + self.gap*(self.lines+1))
+        return width, height
+
+    def dot_coord(self, line, dot_x, dot_y):
+        x = self.gap + self.dot_size*dot_x
+        y = self.gap + self.dot_size*dot_y
+        y += (self.dot_size*self.dots_y + self.gap)*line
+        return x, y
+
+
+def print_vlsb(glyph, dots_y):
+    glyph = bytearray.fromhex(glyph)
+    for y in range(dots_y):
+        line = ''
+        for c in glyph:
+            if c & 1<<y:
+                line += '##'
+            else:
+                line += '  '
+        debug(line)
+
+
+def cmd_read_font(font_file, tpl_files):
+    font = {}
+    for tpl_file in tpl_files:
+        tpl_file = Path(tpl_file).with_suffix('.json')
+        print('Reading template file', tpl_file)
+        with open(tpl_file, 'r', encoding='utf-8') as file:
+            tpl = json.load(file)
+        grid = Grid(tpl['grid'], len(tpl['glyphs']))
+        print('Reading font image', tpl['image'])
+        img = Image.open(tpl['image']).convert('RGB')
+
+        for line in range(grid.lines):
+            glyphs = tpl['glyphs'][line]
+            debug('Line', line, 'glyphs:', glyphs)
+            dot_x = 0
+            for glyph in glyphs:
+                debug('Reading glyph', glyph)
+                glyph_bytes = ''
+                glyph_end = False
+                while not glyph_end:
+                    glyph_byte = 0
+                    for dot_y in range(grid.dots_y):
+                        x, y =grid.dot_coord(line, dot_x, dot_y)
+                        color = img.getpixel((x, y))
+                        hex_color =  '#%02x%02x%02x' % color[:3]
+                        if hex_color == tpl['color']['bg']:
+                            glyph_end = True
+                        elif hex_color == tpl['color']['dot_0']:
+                            pass
+                        elif hex_color == tpl['color']['dot_1']:
+                            glyph_byte |= 1 << dot_y 
+                        else:
+                            raise ValueError('Wrong color');
+                    if not glyph_end:
+                        glyph_bytes += '%02x' % glyph_byte
+                    dot_x += 1
+                print_vlsb(glyph_bytes, grid.dots_y)
+                font[glyph] = glyph_bytes
+
+    print('Writing font file', font_file)
+    with open(font_file, 'w', encoding='utf-8') as file:
+        json.dump(font, file, ensure_ascii=False, indent=4)
+
+
+def cmd_write_image(font_file, tpl_file):
+    try:
+        with open(font_file, 'r', encoding='utf-8') as file:
+            font = json.load(file)
+    except FileNotFoundError:
+        debug('Font file', font_file, 'not found')
+        font = {}
+
+    tpl_file = Path(tpl_file).with_suffix('.json')
+    print('Reading template file', tpl_file)
+    with open(tpl_file, 'r', encoding='utf-8') as file:
+        tpl = json.load(file)
+    grid = Grid(tpl['grid'], len(tpl['glyphs']))
+    img = Image.new('RGB', grid.img_size(), tpl['color']['bg'])
+    draw = ImageDraw.Draw(img)
+
+    for line in range(grid.lines):
+        glyphs = tpl['glyphs'][line]
+        debug('Line', line, 'glyphs:', glyphs)
+        dot_x = 0
+        for glyph in glyphs:
+            glyph = bytearray.fromhex(font[glyph])
+            for col in glyph:
+                for dot_y in range(grid.dots_y):
+                    x1, y1 = grid.dot_coord(line, dot_x, dot_y)
+                    x2, y2 = x1+grid.dot_size-2, y1+grid.dot_size-2
+                    color = tpl['color']['dot_0']
+                    if col & 1<<dot_y:
+                        color = tpl['color']['dot_1']
+                    draw.rectangle([x1, y1, x2, y2], fill=color)
+                dot_x += 1
+            dot_x += 1
+
+        for dot_x in range(dot_x, grid.dots_x):
+            for dot_y in range(grid.dots_y):
+                x1, y1 = grid.dot_coord(line, dot_x, dot_y)
+                x2, y2 = x1+grid.dot_size-2, y1+grid.dot_size-2
+                color = tpl['color']['dot_0']
+                if line ==0 and dot_x == 0 and dot_y == 0:
+                    color = tpl['color']['dot_1']
+                draw.rectangle([x1, y1, x2, y2], fill=color)
+
+    print('Writing font image', tpl['image'])
+    img.save(tpl['image'], 'PNG')
+
+
+def cmd_new_template(tpl_file):
+    tpl_file = Path(tpl_file).with_suffix('.json')
+    img_file = tpl_file.with_suffix('.png')
+    tpl = {
+        'image': str(img_file),
+        'grid': {
+            'dot_size': 8,
+            'dots': [128, 8],
+            'gap': 20
+        },
+        'color': {
+            'bg': '#000000',
+            'dot_0': '#3f3f3f',
+            'dot_1': '#00ffff'
+        },
+        'glyphs': ['', '', '', '']
+    }
+    print('Creating new template', tpl_file)
+    with open(tpl_file, 'w', encoding='utf-8') as file:
+        json.dump(tpl, file, ensure_ascii=False, indent=4)    
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--font', default='font.json', metavar='file')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--read', nargs='+', metavar='tpl', 
+        help='Read font from images, save to font file')
+    group.add_argument('--write', metavar='tpl.json',
+        help='Redraw image glyphs using font')
+    group.add_argument('--new', metavar='tpl.json',
+        help='Create new empty image template')
+    args = parser.parse_args()
+    debug = print if args.verbose else lambda *args, **kwarg: None
+    if args.read:
+        cmd_read_font(args.font, args.read)
+    elif args.write:
+        cmd_write_image(args.font, args.write)
+    else:
+        cmd_new_template(args.new)
