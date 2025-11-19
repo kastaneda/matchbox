@@ -13,6 +13,9 @@ The font
 
 The most important part of this project is the font.
 
+There already are trillion zillion ready-to-use small raster fonts
+around to fulfill any sick need. Didn't I say this project is silly?
+
 ![ASCII glyphs](font/block_ascii.png)
 
 ![Punctuation glyphs](font/block_punctuation.png)
@@ -51,8 +54,10 @@ How to use it:
     Reading font image test.png
     Writing font file test-font.json
     ```
- 6. You can edit template file `test.json` (change geomerty, colors etc)
-    and re-draw the image:
+    This command can collect glyphs from different files and put it all
+    together to one `font.json` file.
+ 6. You can edit template file `test.json` (change geomerty, colors,
+    reorder glyphs, etc) and re-draw the image:
     ```
     $ ./tool --font test-font.json --write test
     Reading template file test.json
