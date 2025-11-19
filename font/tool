@@ -79,7 +79,7 @@ def cmd_read_font(font_file, tpl_files):
     print('Writing font file', font_file)
     with open(font_file, 'w', encoding='utf-8') as file:
         json.dump(font, file, ensure_ascii=False, indent=4)
-
+        file.write('\n')
 
 def cmd_write_image(font_file, tpl_file):
     try:
@@ -147,6 +147,7 @@ def cmd_new_template(tpl_file):
     print('Creating new template', tpl_file)
     with open(tpl_file, 'w', encoding='utf-8') as file:
         json.dump(tpl, file, ensure_ascii=False, indent=4)    
+        file.write('\n')
 
 
 def cmd_test(font_file, remap_file, message):
