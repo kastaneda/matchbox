@@ -15,7 +15,9 @@ The most important part of this project is the font.
 
 ![ASCII glyphs](font/block_ascii.png)
 
-![Cyrillic glyphs](font/block_cyr_ext.png)
+![Punctuation glyphs](font/block_punctuation.png)
+
+![Cyrillic glyphs](font/block_cyrillic.png)
 
 
 The font tool

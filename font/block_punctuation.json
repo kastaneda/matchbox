@@ -1,0 +1,19 @@
+{
+    "image": "block_punctuation.png",
+    "grid": {
+        "dot_size": 8,
+        "dots": [
+            128,
+            8
+        ],
+        "gap": 20
+    },
+    "color": {
+        "bg": "#000000",
+        "dot_0": "#3f3f3f",
+        "dot_1": "#00ffff"
+    },
+    "glyphs": [
+        "«»°–—©§·•№⌘¶₴€£¥¤×÷±≈∅▯"
+    ]
+}
