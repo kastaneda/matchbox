@@ -1,5 +1,5 @@
 {
-    "comment": "Subset of Latin-1 and Codepage-437 characters",
+    "comment": "Subset of Latin-1, Latin-2 and Codepage-437 characters",
     "image": "block_extended.png",
     "grid": {
         "dot_size": 8,
@@ -15,7 +15,7 @@
         "dot_1": "#00ffff"
     },
     "glyphs": [
-        "ÄäÖöÜüẞß",
+        "ÄäÖöÜüẞßŁłźżĄąĘęćśóńčřžňš",
         "μΩΣπαβσΔδεωρτφψ"
     ]
 }
