@@ -41,7 +41,7 @@ def cmd_read_image(font_file, tpl_files):
     font = {' ': '000000'}
     for tpl_file in tpl_files:
         tpl_file = Path(tpl_file).with_suffix('.json')
-        print('Reading template file', tpl_file)
+        print('Reading metadata file', tpl_file)
         with open(tpl_file, 'r', encoding='utf-8') as file:
             tpl = json.load(file)
         grid = Grid(tpl['grid'], len(tpl['glyphs']))
@@ -90,7 +90,7 @@ def cmd_write_image(font_file, tpl_file):
         font = {}
 
     tpl_file = Path(tpl_file).with_suffix('.json')
-    print('Reading template file', tpl_file)
+    print('Reading metadata file', tpl_file)
     with open(tpl_file, 'r', encoding='utf-8') as file:
         tpl = json.load(file)
     grid = Grid(tpl['grid'], len(tpl['glyphs']))
@@ -127,7 +127,7 @@ def cmd_write_image(font_file, tpl_file):
     img.save(tpl['image'], 'PNG')
 
 
-def cmd_new_template(tpl_file):
+def cmd_new_meta(tpl_file):
     tpl_file = Path(tpl_file).with_suffix('.json')
     img_file = tpl_file.with_suffix('.png')
     tpl = {
@@ -145,7 +145,7 @@ def cmd_new_template(tpl_file):
         },
         'glyphs': ['', '', '', '']
     }
-    print('Creating new template', tpl_file)
+    print('Creating new metadata file', tpl_file)
     with open(tpl_file, 'w', encoding='utf-8') as file:
         json.dump(tpl, file, ensure_ascii=False, indent=4)    
         file.write('\n')
@@ -187,14 +187,14 @@ if __name__ == '__main__':
     parser.add_argument('--remap', default='remap.json',
         metavar='remap.json', help='the glyph remap file')
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-read', nargs='+', metavar='tpl',
+    group.add_argument('-read', nargs='+', metavar='src',
         help='scan font image(s), save font to the font.json')
-    group.add_argument('-write', metavar='tpl.json',
+    group.add_argument('-write', metavar='meta[.json]',
         help='draw a font image file using the font.json')
-    group.add_argument('-new', metavar='tpl.json',
-        help='create a blank template')
+    group.add_argument('-new', metavar='meta[.json]',
+        help='create a blank image metadata')
     group.add_argument('-test', metavar='message',
-        help='print message with the font')
+        help='print the message to stdout using the font.json')
     parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
     if args.test:
@@ -205,6 +205,6 @@ if __name__ == '__main__':
     elif args.write:
         cmd_write_image(args.font, args.write)
     elif args.new:
-        cmd_new_template(args.new)
+        cmd_new_meta(args.new)
     else:
         cmd_test(args.font, args.remap, args.test)

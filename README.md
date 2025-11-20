@@ -31,36 +31,36 @@ drawings to font in JSON format and vice versa.
 
 How to use it:
 
- 1. Create template file(s):
+ 1. Create metadata file(s):
     ```
     $ ./tool -new test
-    Creating new template test.json
+    Creating new metadata file test.json
     ```
- 2. Generate font images from template files:
+ 2. Generate font image from metadata file:
     ```
     $ ./tool -write test
-    Reading template file test.json
+    Reading metadata file test.json
     Writing font image test.png
     ```
  3. Edit the image `test.png`
     - draw some glyphs
     - mark gaps between glyphs
     ![ASCII glyphs](font/test.png)
- 4. Edit template file `test.json`, set glyph lines you made
+ 4. Edit metadata file `test.json`, set glyph lines you made
  5. Convert font images to the actual font:
     ```
     $ ./tool --font test-font.json -read test.json
-    Reading template file test.json
+    Reading metadata file test.json
     Reading font image test.png
     Writing font file test-font.json
     ```
     This command can collect glyphs from different files and put it all
     together to one `font.json` file.
- 6. You can edit template file `test.json` (change geomerty, colors,
+ 6. You can edit metadata file `test.json` (change geomerty, colors,
     reorder glyphs, etc) and re-draw the image:
     ```
     $ ./tool --font test-font.json -w test
-    Reading template file test.json
+    Reading metadata file test.json
     Writing font image test.png
     ```
  7. You can test the font rendering:
