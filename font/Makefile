@@ -3,4 +3,4 @@ FONT_JSON := $(patsubst %,%.json,$(FONT))
 FONT_PNG := $(patsubst %,%.png,$(FONT))
 
 font.json: $(FONT_JSON) $(FONT_PNG)
-	./tool --read $(FONT)
+	./tool -read $(FONT) --verbose

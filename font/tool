@@ -37,7 +37,7 @@ def print_vlsb(glyph, dots_y=8):
         debug(line)
 
 
-def cmd_read_font(font_file, tpl_files):
+def cmd_read_image(font_file, tpl_files):
     font = {' ': '000000'}
     for tpl_file in tpl_files:
         tpl_file = Path(tpl_file).with_suffix('.json')
@@ -53,7 +53,7 @@ def cmd_read_font(font_file, tpl_files):
             debug('Line', line, 'glyphs:', glyphs)
             dot_x = 0
             for glyph in glyphs:
-                debug('Reading glyph', glyph)
+                debug('Scanning glyph', glyph)
                 glyph_bytes = ''
                 glyph_end = False
                 while not glyph_end:
@@ -181,24 +181,26 @@ def cmd_test(font_file, remap_file, message):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--font', default='font.json', metavar='file')
-    parser.add_argument('--remap', default='remap.json', metavar='file')
+    parser.add_argument('-f', '--font', default='font.json',
+        metavar='font.json', help='the font file to use')
+    parser.add_argument('--remap', default='remap.json',
+        metavar='remap.json', help='the glyph remap file')
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--read', nargs='+', metavar='tpl', 
-        help='Read font from images, save to font file')
-    group.add_argument('--write', metavar='tpl.json',
-        help='Redraw image glyphs using font')
-    group.add_argument('--new', metavar='tpl.json',
-        help='Create new empty image template')
-    group.add_argument('--test', metavar='msg',
-        help='Print something the font')
+    group.add_argument('-read', nargs='+', metavar='tpl',
+        help='scan font image(s), save font to the font.json')
+    group.add_argument('-write', metavar='tpl.json',
+        help='draw a font image file using the font.json')
+    group.add_argument('-new', metavar='tpl.json',
+        help='create a blank template')
+    group.add_argument('-test', metavar='message',
+        help='print message with the font')
+    parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
     if args.test:
         args.verbose = True
     debug = print if args.verbose else lambda *args, **kwarg: None
     if args.read:
-        cmd_read_font(args.font, args.read)
+        cmd_read_image(args.font, args.read)
     elif args.write:
         cmd_write_image(args.font, args.write)
     elif args.new:

@@ -33,12 +33,12 @@ How to use it:
 
  1. Create template file(s):
     ```
-    $ ./tool --new test
+    $ ./tool -new test
     Creating new template test.json
     ```
  2. Generate font images from template files:
     ```
-    $ ./tool --write test
+    $ ./tool -write test
     Reading template file test.json
     Writing font image test.png
     ```
@@ -49,7 +49,7 @@ How to use it:
  4. Edit template file `test.json`, set glyph lines you made
  5. Convert font images to the actual font:
     ```
-    $ ./tool --font test-font.json --read test.json
+    $ ./tool --font test-font.json -read test.json
     Reading template file test.json
     Reading font image test.png
     Writing font file test-font.json
@@ -59,13 +59,13 @@ How to use it:
  6. You can edit template file `test.json` (change geomerty, colors,
     reorder glyphs, etc) and re-draw the image:
     ```
-    $ ./tool --font test-font.json --write test
+    $ ./tool --font test-font.json -w test
     Reading template file test.json
     Writing font image test.png
     ```
- 7. You can test the font:
+ 7. You can test the font rendering:
     ```
-    $ ./tool --font test-font.json --test AAA
+    $ ./tool --font test-font.json -test AAA
       ####      ####      ####
     ##    ##  ##    ##  ##    ##
     ##    ##  ##    ##  ##    ##
