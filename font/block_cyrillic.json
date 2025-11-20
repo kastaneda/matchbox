@@ -1,4 +1,5 @@
 {
+    "comment": "Characters for Ukrainian and some other languages",
     "image": "block_cyrillic.png",
     "grid": {
         "dot_size": 8,

@@ -131,6 +131,7 @@ def cmd_new_template(tpl_file):
     tpl_file = Path(tpl_file).with_suffix('.json')
     img_file = tpl_file.with_suffix('.png')
     tpl = {
+        'comment': 'Place your comments here',
         'image': str(img_file),
         'grid': {
             'dot_size': 8,
