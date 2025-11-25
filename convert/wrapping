@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import json
+
+
+max_pxl = 128   # Target display is SSD1306 128x32
+
+word_cut = re.compile(r'(\s)')
+is_space = re.compile(r'^\s+$')
+outbuf = ''
+outbuf_pxl = b''
+
+with open('../font/font.json', 'r', encoding='utf-8') as file:
+    font = json.load(file)
+
+with open('../font/remap.json', 'r', encoding='utf-8') as file:
+    remap = json.load(file)
+
+
+def print_vlsb(glyph, dots_y=8):
+    for y in range(dots_y):
+        line = ''
+        for c in glyph:
+            if c & 1<<y:
+                line += '##'
+            else:
+                line += '  '
+        print(line)
+
+
+def text2pxl(message):
+    out = b''
+    for c in message:
+        c = remap.get(c, c);
+        glyph = font.get(c, font.get('▯', ''))
+        glyph = bytearray.fromhex(glyph)
+
+        if out:
+            left = out[-1]
+            right = glyph[0]
+            if left&right or (left>>1)&right or left&(right>>1):
+                out += b'\x00' + glyph
+            else:
+                out += glyph
+        else:
+            out = glyph
+    return out
+
+
+def buf_flush():
+    global outbuf, outbuf_pxl
+    print(outbuf)
+    #print_vlsb(outbuf_pxl)     # for debug
+    outbuf = ''
+    outbuf_pxl = b''
+
+
+def out_word(part):
+    global outbuf, outbuf_pxl
+    part_nohyp = part.replace('\u00ad', '')
+    pxl_avail = max_pxl - len(outbuf_pxl)
+    part_pxl = text2pxl(part_nohyp)
+
+    if len(part_pxl) <= pxl_avail:
+        outbuf += part_nohyp
+        outbuf_pxl += part_pxl
+        return
+
+    if '\u00ad' in part:
+        syllables = part.split('\u00ad')
+        for i in range(len(syllables)-1, 0, -1):
+            head = ''.join(syllables[:i]) + '-'
+            tail = '\u00ad'.join(syllables[i:])
+            head_pxl = text2pxl(head)
+            if len(head_pxl) <= pxl_avail:
+                outbuf += head
+                outbuf_pxl += head_pxl
+                buf_flush()
+                out_word(tail)
+                return
+
+    if not is_space.match(part):
+        if outbuf:
+            buf_flush()
+            out_word(part)
+        else:
+            outbuf, outbuf_pxl = part_nohyp, part_pxl
+            if len(part_pxl) > max_pxl:
+                # TODO: handle VeryVeryLongMaybeGermanWords
+                print('Word', part_nohyp, 'is too long!')
+                sys.exit(1)
+
+
+for line in sys.stdin:
+    for part in word_cut.split(line.rstrip()):
+        out_word(part)
+    buf_flush()
+
+if outbuf:
+    buf_flush()
