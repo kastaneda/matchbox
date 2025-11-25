@@ -2,7 +2,7 @@
 
 # Setup:
 # sudo apt install python3-pyphen hyphen-uk hyphen-en-us
-
+#
 # Usage:
 # ./hyphenate < source.txt > target.txt
 
@@ -10,17 +10,24 @@ import sys
 import pyphen
 import re
 
-hyphenators = [pyphen.Pyphen(lang=l) for l in ('uk_UA', 'en_US')]
+languages = ('uk_UA', 'en_US')
+hyphenators = [pyphen.Pyphen(lang=l) for l in languages]
 word_cut = re.compile(r'([\w\'`]+)')
 is_word = re.compile(r'\w')
 
-for line in sys.stdin:
-    out = []
-    for part in word_cut.split(line.rstrip()):
+
+def hyphenate_line(line):
+    result = []
+    for part in word_cut.split(line):
         if is_word.match(part):
             for dic in hyphenators:
                 part = dic.inserted(part)
-            out.append(part.replace('-', '\u00ad'))
+            result.append(part.replace('-', '\u00ad'))
         else:
-            out.append(part)
-    print(''.join(out))
+            result.append(part)
+    return ''.join(result)
+
+
+if __name__ == '__main__':
+    for line in sys.stdin:
+        print(hyphenate_line(line.rstrip()))
