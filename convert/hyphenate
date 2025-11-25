@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-# Setup:
-# sudo apt install python3-pyphen hyphen-uk hyphen-en-us
-#
-# Usage:
-# ./hyphenate < source.txt > target.txt
+"""
+A small utility for adding soft hyphens to text
+
+Setup:  sudo apt install python3-pyphen hyphen-uk hyphen-en-us
+Usage:  ./hyphenate < source.txt > target.txt
+"""
 
 import sys
-import pyphen
 import re
+import pyphen
 
 languages = ('uk_UA', 'en_US')
 hyphenators = [pyphen.Pyphen(lang=l) for l in languages]
@@ -16,9 +17,10 @@ word_cut = re.compile(r'([\w\'`]+)')
 is_word = re.compile(r'\w')
 
 
-def hyphenate_line(line):
+def hyphenate(text):
+    """Adds soft hyphens to a string using all dictionaries"""
     result = []
-    for part in word_cut.split(line):
+    for part in word_cut.split(text):
         if is_word.match(part):
             for dic in hyphenators:
                 part = dic.inserted(part, '\u00ad')
@@ -28,4 +30,4 @@ def hyphenate_line(line):
 
 if __name__ == '__main__':
     for line in sys.stdin:
-        print(hyphenate_line(line.rstrip()))
+        print(hyphenate(line.rstrip()))
