@@ -21,10 +21,8 @@ def hyphenate_line(line):
     for part in word_cut.split(line):
         if is_word.match(part):
             for dic in hyphenators:
-                part = dic.inserted(part)
-            result.append(part.replace('-', '\u00ad'))
-        else:
-            result.append(part)
+                part = dic.inserted(part, '\u00ad')
+        result.append(part)
     return ''.join(result)
 
 
