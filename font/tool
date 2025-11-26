@@ -222,7 +222,7 @@ if __name__ == '__main__':
         help='draw a font image file using the font.json')
     group.add_argument('-new', metavar='meta[.json]',
         help='create a new metadata file')
-    group.add_argument('-test', metavar='message',
+    group.add_argument('-test', metavar='str', nargs='+',
         help='print test message to stdout using the font.json')
     parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
@@ -235,4 +235,4 @@ if __name__ == '__main__':
     elif args.new:
         cmd__create_new_metadata_file(args.new)
     else:
-        cmd__print_test_message(args.font, args.test)
+        cmd__print_test_message(args.font, ' '.join(args.test))
