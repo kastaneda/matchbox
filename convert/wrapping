@@ -15,28 +15,13 @@ outbuf_pxl = b''
 with open('../font/font.json', 'r', encoding='utf-8') as file:
     font = json.load(file)
 
-with open('../font/remap.json', 'r', encoding='utf-8') as file:
-    remap = json.load(file)
 
-
-def print_vlsb(glyph, dots_y=8):
-    for y in range(dots_y):
-        line = ''
-        for c in glyph:
-            if c & 1<<y:
-                line += '##'
-            else:
-                line += '  '
-        print(line)
-
-
-def text2pxl(message):
+def text2vlsb(text):
     out = b''
-    for c in message:
-        c = remap.get(c, c);
+    for c in text:
+        c = font.get('remap', {}).get(c, c);
         glyph = font.get(c, font.get('▯', ''))
         glyph = bytearray.fromhex(glyph)
-
         if out:
             left = out[-1]
             right = glyph[0]
@@ -47,6 +32,16 @@ def text2pxl(message):
         else:
             out = glyph
     return out
+
+
+def print_vlsb(vlsb, dots_y=8, print_fn=print):
+    for y in range(dots_y):
+        for c in vlsb:
+            if c & 1<<y:
+                print_fn('##', end='')
+            else:
+                print_fn('  ', end='')
+        print_fn()
 
 
 def buf_flush():
@@ -61,7 +56,7 @@ def out_word(part):
     global outbuf, outbuf_pxl
     part_nohyp = part.replace('\u00ad', '')
     pxl_avail = max_pxl - len(outbuf_pxl)
-    part_pxl = text2pxl(part_nohyp)
+    part_pxl = text2vlsb(part_nohyp)
 
     if len(part_pxl) <= pxl_avail:
         outbuf += part_nohyp
@@ -73,7 +68,7 @@ def out_word(part):
         for i in range(len(syllables)-1, 0, -1):
             head = ''.join(syllables[:i]) + '-'
             tail = '\u00ad'.join(syllables[i:])
-            head_pxl = text2pxl(head)
+            head_pxl = text2vlsb(head)
             if len(head_pxl) <= pxl_avail:
                 outbuf += head
                 outbuf_pxl += head_pxl
