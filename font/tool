@@ -2,6 +2,8 @@
 
 import argparse
 import json
+import os
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -203,7 +205,14 @@ def cmd__print_test_message(font_file, remap_file, message):
     except FileNotFoundError:
         debug('Remap file', remap_file, 'not found')
         remap = {}
-    print_vlsb(text2vlsb(font, remap, message))
+    vlsb = text2vlsb(font, remap, message)
+    try:
+        dots_y = (os.get_terminal_size().columns - 1) // 2
+        while vlsb:
+            print_vlsb(vlsb[:dots_y])
+            vlsb = vlsb[dots_y:]
+    except OSError:
+        print_vlsb(vlsb)
 
 
 if __name__ == '__main__':
