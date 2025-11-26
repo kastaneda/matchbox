@@ -5,132 +5,176 @@ import json
 from pathlib import Path
 from PIL import Image, ImageDraw
 
+log_warning = log_notice = log_debug = print
+
 
 class Grid:
-    def __init__(self, tpl_grid, lines):
-        self.dots_x, self.dots_y = tpl_grid['dots']
-        self.dot_size = tpl_grid['dot_size']
-        self.gap = tpl_grid['gap']
+    def __init__(self, lines, dots, dot_size, gap):
         self.lines = lines
+        self.dots_x, self.dots_y = dots
+        assert self.dots_y <= 8, 'Large fonts are not supported'
+        self.dot_size = dot_size
+        self.gap = gap
 
-    def img_size(self):
-        width = self.dot_size*self.dots_x + self.gap*2
-        height = (self.dot_size*self.dots_y*self.lines
-                + self.gap*(self.lines+1))
+    def size(self):
+        width = self.dot_size * self.dots_x + self.gap * 2
+        height = (self.dot_size * self.dots_y * self.lines
+                  + self.gap * (self.lines + 1))
         return width, height
 
     def dot_coord(self, line, dot_x, dot_y):
-        x = self.gap + self.dot_size*dot_x
-        y = self.gap + self.dot_size*dot_y
-        y += (self.dot_size*self.dots_y + self.gap)*line
+        x = self.gap + self.dot_size * dot_x
+        y = (self.gap + self.dot_size * dot_y
+             + line * (self.dot_size * self.dots_y + self.gap))
         return x, y
 
 
-def print_vlsb(glyph, dots_y=8):
-    for y in range(dots_y):
-        line = ''
-        for c in glyph:
-            if c & 1<<y:
-                line += '##'
+class Palette(dict):
+    def __init__(self, bg, dot_0, dot_1):
+       dict.__init__(self, {None: bg, 0: dot_0, 1: dot_1})
+
+    def color_select(self, r, g, b):
+        hex_color =  '#%02x%02x%02x' % (r, g, b)
+        for index in self.keys():
+            if self[index] == hex_color:
+                return index
+        raise ValueError('Wrong color')
+
+
+class FontMetadata:
+    def __init__(self, filename):
+        filename = Path(filename).with_suffix('.json')
+        log_notice('Reading metadata file', filename)
+        with open(filename, 'r', encoding='utf-8') as file:
+            self.data = json.load(file)
+        self.lines = len(self.data['glyphs'])
+        self.grid = Grid(self.lines, **self.data['grid'])
+        self.pal = Palette(**self.data['color'])
+
+    def new_img(self):
+        self.img = Image.new('RGB', self.grid.size(), self.pal[None])
+        self.draw = ImageDraw.Draw(self.img)
+
+    def load_img(self):
+        log_notice('Reading font image', self.data['image'])
+        self.img = Image.open(self.data['image']).convert('RGB')
+
+    def save_img(self):
+        log_notice('Writing font image', self.data['image'])
+        self.img.save(self.data['image'], 'PNG')
+
+    def read_dot(self, line, dot_x, dot_y):
+        x, y = self.grid.dot_coord(line, dot_x, dot_y)
+        color = self.img.getpixel((x, y))
+        return self.pal.color_select(*color[:3])
+
+    def draw_dot(self, line, dot_x, dot_y, value):
+        x2, y2 = x1, y1 = self.grid.dot_coord(line, dot_x, dot_y)
+        x2 += self.grid.dot_size - 2
+        y2 += self.grid.dot_size - 2
+        self.draw.rectangle([x1, y1, x2, y2], fill=self.pal[value])
+
+
+def load_font(font_file, required=False):
+    try:
+        with open(font_file, 'r', encoding='utf-8') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        log_warning('Font file', font_file, 'not found')
+        if required:
+            sys.exit('Cannot continue')
+        return {}
+
+
+def text2vlsb(font, remap, text):
+    out = b''
+    for c in text:
+        c = remap.get(c, c);
+        glyph = font.get(c, font.get('▯', ''))
+        glyph = bytearray.fromhex(glyph)
+        if out:
+            left = out[-1]
+            right = glyph[0]
+            if left&right or (left>>1)&right or left&(right>>1):
+                out += b'\x00' + glyph
             else:
-                line += '  '
-        debug(line)
+                out += glyph
+        else:
+            out = glyph
+    return out
 
 
-def cmd_read_image(font_file, tpl_files):
+def print_vlsb(vlsb, dots_y=8, print_fn=print):
+    for y in range(dots_y):
+        for c in vlsb:
+            if c & 1<<y:
+                print_fn('##', end='')
+            else:
+                print_fn('  ', end='')
+        print_fn()
+
+
+def cmd__read_font_from_images(font_file, metadata_files):
     font = {' ': '000000'}
-    for tpl_file in tpl_files:
-        tpl_file = Path(tpl_file).with_suffix('.json')
-        print('Reading metadata file', tpl_file)
-        with open(tpl_file, 'r', encoding='utf-8') as file:
-            tpl = json.load(file)
-        grid = Grid(tpl['grid'], len(tpl['glyphs']))
-        print('Reading font image', tpl['image'])
-        img = Image.open(tpl['image']).convert('RGB')
-
-        for line in range(grid.lines):
-            glyphs = tpl['glyphs'][line]
-            debug('Line', line, 'glyphs:', glyphs)
+    for metadata_file in metadata_files:
+        fm = FontMetadata(metadata_file)
+        fm.load_img()
+        for line in range(fm.grid.lines):
+            glyphs = fm.data['glyphs'][line]
+            log_debug('Line', line, 'glyphs:', glyphs)
             dot_x = 0
             for glyph in glyphs:
-                debug('Scanning glyph', glyph)
+                log_debug('Scanning glyph', glyph)
                 glyph_bytes = ''
                 glyph_end = False
                 while not glyph_end:
                     glyph_byte = 0
-                    for dot_y in range(grid.dots_y):
-                        x, y =grid.dot_coord(line, dot_x, dot_y)
-                        color = img.getpixel((x, y))
-                        hex_color =  '#%02x%02x%02x' % color[:3]
-                        if hex_color == tpl['color']['bg']:
+                    for dot_y in range(fm.grid.dots_y):
+                        dot_value = fm.read_dot(line, dot_x, dot_y)
+                        if dot_value == None:
                             glyph_end = True
-                        elif hex_color == tpl['color']['dot_0']:
-                            pass
-                        elif hex_color == tpl['color']['dot_1']:
-                            glyph_byte |= 1 << dot_y 
                         else:
-                            raise ValueError('Wrong color');
+                            glyph_byte |= dot_value << dot_y
+                    dot_x += 1
                     if not glyph_end:
                         glyph_bytes += '%02x' % glyph_byte
-                    dot_x += 1
-                print_vlsb(bytearray.fromhex(glyph_bytes), grid.dots_y)
                 font[glyph] = glyph_bytes
-
-    print('Writing font file', font_file)
+                vlsb = bytearray.fromhex(glyph_bytes)
+                print_vlsb(vlsb, fm.grid.dots_y, log_debug)
+    log_notice('Writing font file', font_file)
     with open(font_file, 'w', encoding='utf-8') as file:
         json.dump(font, file, ensure_ascii=False, indent=4)
         file.write('\n')
 
-def cmd_write_image(font_file, tpl_file):
-    try:
-        with open(font_file, 'r', encoding='utf-8') as file:
-            font = json.load(file)
-    except FileNotFoundError:
-        debug('Font file', font_file, 'not found')
-        font = {}
 
-    tpl_file = Path(tpl_file).with_suffix('.json')
-    print('Reading metadata file', tpl_file)
-    with open(tpl_file, 'r', encoding='utf-8') as file:
-        tpl = json.load(file)
-    grid = Grid(tpl['grid'], len(tpl['glyphs']))
-    img = Image.new('RGB', grid.img_size(), tpl['color']['bg'])
-    draw = ImageDraw.Draw(img)
-
-    for line in range(grid.lines):
-        glyphs = tpl['glyphs'][line]
-        debug('Line', line, 'glyphs:', glyphs)
+def cmd__draw_font_image(font_file, metadata_file):
+    font = load_font(font_file)
+    fm = FontMetadata(metadata_file)
+    fm.new_img()
+    for line in range(fm.grid.lines):
+        glyphs = fm.data['glyphs'][line]
+        log_debug('Line', line, 'glyphs:', glyphs)
         dot_x = 0
         for glyph in glyphs:
-            glyph = bytearray.fromhex(font[glyph])
-            for col in glyph:
-                for dot_y in range(grid.dots_y):
-                    x1, y1 = grid.dot_coord(line, dot_x, dot_y)
-                    x2, y2 = x1+grid.dot_size-2, y1+grid.dot_size-2
-                    color = tpl['color']['dot_0']
-                    if col & 1<<dot_y:
-                        color = tpl['color']['dot_1']
-                    draw.rectangle([x1, y1, x2, y2], fill=color)
+            vlsb = bytearray.fromhex(font[glyph])
+            for col in vlsb:
+                for dot_y in range(fm.grid.dots_y):
+                    value = int(bool(col & 1<<dot_y))
+                    fm.draw_dot(line, dot_x, dot_y, value)
                 dot_x += 1
             dot_x += 1
-
-        for dot_x in range(dot_x, grid.dots_x):
-            for dot_y in range(grid.dots_y):
-                x1, y1 = grid.dot_coord(line, dot_x, dot_y)
-                x2, y2 = x1+grid.dot_size-2, y1+grid.dot_size-2
-                color = tpl['color']['dot_0']
+        for dot_x in range(dot_x, fm.grid.dots_x):
+            for dot_y in range(fm.grid.dots_y):
+                fm.draw_dot(line, dot_x, dot_y, 0)
                 if line ==0 and dot_x == 0 and dot_y == 0:
-                    color = tpl['color']['dot_1']
-                draw.rectangle([x1, y1, x2, y2], fill=color)
-
-    print('Writing font image', tpl['image'])
-    img.save(tpl['image'], 'PNG')
+                    fm.draw_dot(line, dot_x, dot_y, 1)
+    fm.save_img()
 
 
-def cmd_new_meta(tpl_file):
-    tpl_file = Path(tpl_file).with_suffix('.json')
-    img_file = tpl_file.with_suffix('.png')
-    tpl = {
+def cmd__create_new_metadata_file(metadata_file):
+    metadata_file = Path(metadata_file).with_suffix('.json')
+    img_file = metadata_file.with_suffix('.png')
+    meta = {
         'comment': 'Place your comments here',
         'image': str(img_file),
         'grid': {
@@ -145,40 +189,22 @@ def cmd_new_meta(tpl_file):
         },
         'glyphs': ['', '', '', '']
     }
-    print('Creating new metadata file', tpl_file)
-    with open(tpl_file, 'w', encoding='utf-8') as file:
-        json.dump(tpl, file, ensure_ascii=False, indent=4)    
+    log_notice('Creating new metadata file', metadata_file)
+    with open(metadata_file, 'w', encoding='utf-8') as file:
+        json.dump(meta, file, ensure_ascii=False, indent=4)
         file.write('\n')
 
 
-def cmd_test(font_file, remap_file, message):
-    with open(font_file, 'r', encoding='utf-8') as file:
-        font = json.load(file)
-
+def cmd__print_test_message(font_file, remap_file, message):
+    font = load_font(font_file, True)
     try:
         with open(remap_file, 'r', encoding='utf-8') as file:
             remap = json.load(file)
     except FileNotFoundError:
         debug('Remap file', remap_file, 'not found')
         remap = {}
+    print_vlsb(text2vlsb(font, remap, message))
 
-    out = b''
-    for c in message:
-        c = remap.get(c, c);
-        glyph = font.get(c, font.get('▯', ''))
-        glyph = bytearray.fromhex(glyph)
-
-        if out:
-            left = out[-1]
-            right = glyph[0]
-            if left&right or (left>>1)&right or left&(right>>1):
-                out += b'\x00' + glyph
-            else:
-                out += glyph
-        else:
-            out = glyph
-
-    print_vlsb(out)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -192,19 +218,18 @@ if __name__ == '__main__':
     group.add_argument('-write', metavar='meta[.json]',
         help='draw a font image file using the font.json')
     group.add_argument('-new', metavar='meta[.json]',
-        help='create a blank image metadata')
+        help='create a new metadata file')
     group.add_argument('-test', metavar='message',
-        help='print the message to stdout using the font.json')
+        help='print test message to stdout using the font.json')
     parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
-    if args.test:
-        args.verbose = True
-    debug = print if args.verbose else lambda *args, **kwarg: None
+    if not args.verbose:
+        log_debug = lambda *args, **kwarg: None
     if args.read:
-        cmd_read_image(args.font, args.read)
+        cmd__read_font_from_images(args.font, args.read)
     elif args.write:
-        cmd_write_image(args.font, args.write)
+        cmd__draw_font_image(args.font, args.write)
     elif args.new:
-        cmd_new_meta(args.new)
+        cmd__create_new_metadata_file(args.new)
     else:
-        cmd_test(args.font, args.remap, args.test)
+        cmd__print_test_message(args.font, args.remap, args.test)
