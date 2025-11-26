@@ -143,10 +143,9 @@ def cmd__read_font_from_images(font_file, metadata_files):
         font['remap'] |= fm.data.get('remap', {})
         fm.load_img()
         for line in range(fm.grid.lines):
-            glyphs = fm.data['glyphs'][line]
-            log_debug('Line', line, 'glyphs:', glyphs)
+            log_debug('Line', line, 'glyphs:', fm.data['glyphs'][line])
             dot_x = 0
-            for glyph in glyphs:
+            for glyph in fm.data['glyphs'][line]:
                 log_debug('Scanning glyph', glyph)
                 glyph_bytes = ''
                 glyph_end = False
@@ -154,10 +153,8 @@ def cmd__read_font_from_images(font_file, metadata_files):
                     glyph_byte = 0
                     for dot_y in range(fm.grid.dots_y):
                         dot_value = fm.read_dot(line, dot_x, dot_y)
-                        if dot_value is None:
-                            glyph_end = True
-                        else:
-                            glyph_byte |= dot_value << dot_y
+                        glyph_end = dot_value is None
+                        glyph_byte |= int(bool(dot_value)) << dot_y
                     dot_x += 1
                     if not glyph_end:
                         glyph_bytes += f'{glyph_byte:02x}'
