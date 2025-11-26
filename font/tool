@@ -137,7 +137,7 @@ def print_vlsb(vlsb, dots_y=8, print_fn=print):
 
 def cmd__read_font_from_images(font_file, metadata_files):
     """Command to read font images and create final font.json"""
-    font = {'remap': {}, ' ': '000000'}
+    font = {'remap': {}}
     for metadata_file in metadata_files:
         fm = FontMetadata(metadata_file)
         font['remap'] |= fm.data.get('remap', {})
