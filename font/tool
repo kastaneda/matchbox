@@ -88,10 +88,10 @@ def load_font(font_file, required=False):
         return {}
 
 
-def text2vlsb(font, remap, text):
+def text2vlsb(font, text):
     out = b''
     for c in text:
-        c = remap.get(c, c);
+        c = font.get('remap', {}).get(c, c);
         glyph = font.get(c, font.get('▯', ''))
         glyph = bytearray.fromhex(glyph)
         if out:
@@ -117,9 +117,10 @@ def print_vlsb(vlsb, dots_y=8, print_fn=print):
 
 
 def cmd__read_font_from_images(font_file, metadata_files):
-    font = {' ': '000000'}
+    font = {'remap': {}, ' ': '000000'}
     for metadata_file in metadata_files:
         fm = FontMetadata(metadata_file)
+        font['remap'] |= fm.data.get('remap', {})
         fm.load_img()
         for line in range(fm.grid.lines):
             glyphs = fm.data['glyphs'][line]
@@ -189,7 +190,8 @@ def cmd__create_new_metadata_file(metadata_file):
             'dot_0': '#3f3f3f',
             'dot_1': '#00ffff'
         },
-        'glyphs': ['', '', '', '']
+        'glyphs': ['', '', '', ''],
+        'remap': {}
     }
     log_notice('Creating new metadata file', metadata_file)
     with open(metadata_file, 'w', encoding='utf-8') as file:
@@ -197,15 +199,9 @@ def cmd__create_new_metadata_file(metadata_file):
         file.write('\n')
 
 
-def cmd__print_test_message(font_file, remap_file, message):
+def cmd__print_test_message(font_file, message):
     font = load_font(font_file, True)
-    try:
-        with open(remap_file, 'r', encoding='utf-8') as file:
-            remap = json.load(file)
-    except FileNotFoundError:
-        debug('Remap file', remap_file, 'not found')
-        remap = {}
-    vlsb = text2vlsb(font, remap, message)
+    vlsb = text2vlsb(font, message)
     try:
         dots_y = (os.get_terminal_size().columns - 1) // 2
         while vlsb:
@@ -219,8 +215,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--font', default='font.json',
         metavar='font.json', help='the font file to use')
-    parser.add_argument('--remap', default='remap.json',
-        metavar='remap.json', help='the glyph remap file')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-read', nargs='+', metavar='src',
         help='scan font image(s), save font to the font.json')
@@ -241,4 +235,4 @@ if __name__ == '__main__':
     elif args.new:
         cmd__create_new_metadata_file(args.new)
     else:
-        cmd__print_test_message(args.font, args.remap, args.test)
+        cmd__print_test_message(args.font, args.test)
