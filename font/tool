@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+"""
+The Font Tool
+"""
+
 import argparse
 import json
 import os
@@ -11,6 +15,8 @@ log_warning = log_notice = log_debug = print
 
 
 class Grid:
+    """Class for describing the geometry of an image template"""
+
     def __init__(self, lines, dots, dot_size, gap):
         self.lines = lines
         self.dots_x, self.dots_y = dots
@@ -19,12 +25,14 @@ class Grid:
         self.gap = gap
 
     def size(self):
+        """Computes the total image size"""
         width = self.dot_size * self.dots_x + self.gap * 2
         height = (self.dot_size * self.dots_y * self.lines
                   + self.gap * (self.lines + 1))
         return width, height
 
     def dot_coord(self, line, dot_x, dot_y):
+        """Computes left top edge of specific 'dot' on the grid"""
         x = self.gap + self.dot_size * dot_x
         y = (self.gap + self.dot_size * dot_y
              + line * (self.dot_size * self.dots_y + self.gap))
@@ -32,18 +40,23 @@ class Grid:
 
 
 class Palette(dict):
-    def __init__(self, bg, dot_0, dot_1):
-       dict.__init__(self, {None: bg, 0: dot_0, 1: dot_1})
+    """Class for keeping image colors"""
 
-    def color_select(self, r, g, b):
-        hex_color =  '#%02x%02x%02x' % (r, g, b)
-        for index in self.keys():
-            if self[index] == hex_color:
+    def __init__(self, bg, dot_0, dot_1):
+        dict.__init__(self, {None: bg, 0: dot_0, 1: dot_1})
+
+    def value(self, r, g, b):
+        """Finds a semantic value for a real RGB color"""
+        hex_color = f'#{r:02x}{g:02x}{b:02x}'
+        for index, color in self.items():
+            if color == hex_color:
                 return index
         raise ValueError('Wrong color')
 
 
 class FontMetadata:
+    """Class for storing metadata and working with their images"""
+
     def __init__(self, filename):
         filename = Path(filename).with_suffix('.json')
         log_notice('Reading metadata file', filename)
@@ -52,25 +65,28 @@ class FontMetadata:
         self.lines = len(self.data['glyphs'])
         self.grid = Grid(self.lines, **self.data['grid'])
         self.pal = Palette(**self.data['color'])
-
-    def new_img(self):
         self.img = Image.new('RGB', self.grid.size(), self.pal[None])
         self.draw = ImageDraw.Draw(self.img)
 
     def load_img(self):
+        """Loads an image from a file"""
         log_notice('Reading font image', self.data['image'])
         self.img = Image.open(self.data['image']).convert('RGB')
+        self.draw = ImageDraw.Draw(self.img)
 
     def save_img(self):
+        """Saves the image to a file"""
         log_notice('Writing font image', self.data['image'])
         self.img.save(self.data['image'], 'PNG')
 
     def read_dot(self, line, dot_x, dot_y):
+        """Gets the logical value of a specified 'dot' on the image"""
         x, y = self.grid.dot_coord(line, dot_x, dot_y)
         color = self.img.getpixel((x, y))
-        return self.pal.color_select(*color[:3])
+        return self.pal.value(*color[:3])
 
     def draw_dot(self, line, dot_x, dot_y, value):
+        """Paints a specified square 'dot' on the image"""
         x2, y2 = x1, y1 = self.grid.dot_coord(line, dot_x, dot_y)
         x2 += self.grid.dot_size - 2
         y2 += self.grid.dot_size - 2
@@ -78,23 +94,25 @@ class FontMetadata:
 
 
 def load_font(font_file, required=False):
+    """Loads the ready-made font from a file"""
     try:
         with open(font_file, 'r', encoding='utf-8') as file:
             return json.load(file)
     except FileNotFoundError:
         log_warning('Font file', font_file, 'not found')
         if required:
-            sys.exit('Cannot continue')
+            sys.exit(1)
         return {}
 
 
 def text2vlsb(font, text):
+    """Converts text to VLSB-formatted bitmap"""
     out = b''
     for c in text:
-        c = font.get('remap', {}).get(c, c);
+        c = font.get('remap', {}).get(c, c)
         glyph = font.get(c, font.get('▯', ''))
         glyph = bytearray.fromhex(glyph)
-        if out:
+        if out and glyph:
             left = out[-1]
             right = glyph[0]
             if left&right or (left>>1)&right or left&(right>>1):
@@ -102,11 +120,12 @@ def text2vlsb(font, text):
             else:
                 out += glyph
         else:
-            out = glyph
+            out += glyph
     return out
 
 
 def print_vlsb(vlsb, dots_y=8, print_fn=print):
+    """Prints VLSB-formatted bitmap"""
     for y in range(dots_y):
         for c in vlsb:
             if c & 1<<y:
@@ -117,6 +136,7 @@ def print_vlsb(vlsb, dots_y=8, print_fn=print):
 
 
 def cmd__read_font_from_images(font_file, metadata_files):
+    """Command to read font images and create final font.json"""
     font = {'remap': {}, ' ': '000000'}
     for metadata_file in metadata_files:
         fm = FontMetadata(metadata_file)
@@ -134,13 +154,13 @@ def cmd__read_font_from_images(font_file, metadata_files):
                     glyph_byte = 0
                     for dot_y in range(fm.grid.dots_y):
                         dot_value = fm.read_dot(line, dot_x, dot_y)
-                        if dot_value == None:
+                        if dot_value is None:
                             glyph_end = True
                         else:
                             glyph_byte |= dot_value << dot_y
                     dot_x += 1
                     if not glyph_end:
-                        glyph_bytes += '%02x' % glyph_byte
+                        glyph_bytes += f'{glyph_byte:02x}'
                 font[glyph] = glyph_bytes
                 vlsb = bytearray.fromhex(glyph_bytes)
                 print_vlsb(vlsb, fm.grid.dots_y, log_debug)
@@ -151,9 +171,9 @@ def cmd__read_font_from_images(font_file, metadata_files):
 
 
 def cmd__draw_font_image(font_file, metadata_file):
+    """Command to (re-)paint font image with font.json and metadata"""
     font = load_font(font_file)
     fm = FontMetadata(metadata_file)
-    fm.new_img()
     for line in range(fm.grid.lines):
         glyphs = fm.data['glyphs'][line]
         log_debug('Line', line, 'glyphs:', glyphs)
@@ -175,6 +195,7 @@ def cmd__draw_font_image(font_file, metadata_file):
 
 
 def cmd__create_new_metadata_file(metadata_file):
+    """Command to create a new metadata file"""
     metadata_file = Path(metadata_file).with_suffix('.json')
     img_file = metadata_file.with_suffix('.png')
     meta = {
@@ -200,6 +221,7 @@ def cmd__create_new_metadata_file(metadata_file):
 
 
 def cmd__print_test_message(font_file, message):
+    """Command to render bitmap with the font and print to stdout"""
     font = load_font(font_file, True)
     vlsb = text2vlsb(font, message)
     try:
@@ -212,7 +234,7 @@ def cmd__print_test_message(font_file, message):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-f', '--font', default='font.json',
         metavar='font.json', help='the font file to use')
     group = parser.add_mutually_exclusive_group(required=True)
@@ -227,6 +249,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
     if not args.verbose:
+        # pylint: disable=unnecessary-lambda-assignment
         log_debug = lambda *args, **kwarg: None
     if args.read:
         cmd__read_font_from_images(args.font, args.read)
