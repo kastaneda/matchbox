@@ -1,0 +1,2 @@
+#!/bin/sh
+mpremote cp font_map_addr.bin font_bitmap.bin font.py :
