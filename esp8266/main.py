@@ -2,7 +2,14 @@ import gc
 import machine
 import time
 import ssd1306
+
+print(gc.mem_free())
+
 import font
+
+print(gc.mem_free())
+gc.collect()
+print(gc.mem_free())
 
 
 def readglyph(c):
@@ -12,10 +19,9 @@ def readglyph(c):
     i = font.index.find(c)
     if i < 0:
         i = font.index.find('▯')
-    map_addr = font.map_addr[i*2] + (font.map_addr[i*2+1]<<8)
-    c_addr = map_addr>>3
-    c_len = 1 + (map_addr&7)
-    return memoryview(font.bitmap)[c_addr:c_addr+c_len]
+    addr0 = 0 if i == 0 else font.map_addr[i-1]
+    addr1 = font.map_addr[i]
+    return memoryview(font.bitmap)[addr0:addr1]
 
 
 def text2vlsb(text):

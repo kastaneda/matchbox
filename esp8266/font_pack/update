@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import array
 import json
 
 with open('../../font/font.json') as f:
@@ -12,25 +13,17 @@ font.pop('remap')
 index = ''.join(font.keys())
 
 bitmap = bytearray()
-map_addr = bytearray()
+map_addr = array.array('H')
 for glyph in font.values():
     pixels = bytearray.fromhex(glyph)
-    ma = (len(pixels)-1) + (len(bitmap)<<3)
-    map_addr.append(ma&255)
-    map_addr.append(ma>>8)
     bitmap += pixels
-
-with open('font_map_addr.bin', 'wb') as f:
-    f.write(map_addr)
-
-with open('font_bitmap.bin', 'wb') as f:
-    f.write(bitmap)
+    ma = len(bitmap)
+    map_addr.append(ma)
 
 with open('font.py', 'w') as f:
+    print('from array import array', file=f)
     print('remap_from =', remap_from.__repr__(), file=f)
     print('remap_to =', remap_to.__repr__(), file=f)
     print('index =', index.__repr__(), file=f)
-    print('with open("font_map_addr.bin", "rb") as f:', file=f)
-    print('    map_addr = bytearray(f.read())', file=f)
-    print('with open("font_bitmap.bin", "rb") as f:', file=f)
-    print('    bitmap = bytearray(f.read())', file=f)
+    print('map_addr =', map_addr.__repr__(), file=f)
+    print('bitmap =', bitmap.__repr__(), file=f)
