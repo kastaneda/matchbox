@@ -32,5 +32,5 @@ if __name__ == '__main__':
     print('remap_from =', repr(remap_from))
     print('remap_to =', repr(remap_to))
     print('index =', repr(index))
-    print('map_addr =', repr(map_addr))
+    print('map_addr =', repr(map_addr).replace(', ', ','))
     print('bitmap =', repr(bitmap))
