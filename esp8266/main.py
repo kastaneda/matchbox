@@ -2,14 +2,7 @@ import gc
 import machine
 import time
 import ssd1306
-
-print(gc.mem_free())
-
 import font
-
-print(gc.mem_free())
-gc.collect()
-print(gc.mem_free())
 
 
 def readglyph(c):
@@ -125,40 +118,47 @@ class TextDisplay:
         self.disp.show()
 
 
-def show_page(disp, start_file_line, start_screen_line):
+def show_page(disp, file_name, seek_bytes, skip_lines):
     txt = TextDisplay(disp)
-    txt.line = -start_screen_line
-    file_lines = anchor = 0
-    with open('book.txt') as f:
-        for line in f:
-            file_lines += 1
-            if file_lines >= start_file_line:
-                anchor = txt.line
-                txt.print_line(line.rstrip())
-            if txt.line >= txt.lines:
+    txt.line = -skip_lines
+    prev_line = 0
+    with open(file_name) as f:
+        f.seek(seek_bytes)
+        line = f.readline()
+        while line:
+            txt.print_line(line.rstrip())
+            if txt.line == txt.lines:
+                seek_bytes = f.tell()
                 break
+            if txt.line > txt.lines:
+                skip_lines += txt.lines - prev_line
+                break
+            seek_bytes = f.tell()
+            skip_lines = 0
+            prev_line = txt.line
+            line = f.readline()
     txt.show()
-    if file_lines == start_file_line:
-        return (start_file_line, start_screen_line+txt.lines)
-    return (file_lines, txt.lines-anchor)
+    return (seek_bytes, skip_lines)
 
+
+gc.collect()
 
 i2c = machine.SoftI2C(sda=machine.Pin(4), scl=machine.Pin(5))
 disp = ssd1306.SSD1306_I2C(128, 32, i2c)
 disp.contrast(0)
-gc.collect()
 rtc = machine.RTC()
 
-try:
-    fl, sl = rtc.memory().decode().split(' ')
-    fl, sl = int(fl), int(sl)
-except (ValueError, AttributeError):
-    fl, sl = 0, 0
-
-fl, sl = show_page(disp, fl, sl)
 gc.collect()
 
-rtc.memory(('%d %d' % (fl, sl)).encode())
+try:
+    sb, sl = rtc.memory().decode().split(' ')
+    sb, sl = int(sb), int(sl)
+except (ValueError, AttributeError):
+    sb, sl = 0, 0
+
+sb, sl = show_page(disp, 'book.txt', sb, sl)
+
+rtc.memory(('%d %d' % (sb, sl)).encode())
 
 time.sleep(5)
 machine.deepsleep()
