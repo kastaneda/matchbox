@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 
+"""
+A small utility to convert font to MicroPython-friendly format
+
+Usage:  ./update > font.py
+"""
+
 import array
 import json
 
-with open('../../font/font.json') as f:
+with open('../font/font.json', encoding='utf-8') as f:
     font = json.load(f)
 
 remap_from = ''.join(font['remap'].keys())
@@ -20,10 +26,11 @@ for glyph in font.values():
     ma = len(bitmap)
     map_addr.append(ma)
 
-with open('font.py', 'w') as f:
-    print('from array import array', file=f)
-    print('remap_from =', remap_from.__repr__(), file=f)
-    print('remap_to =', remap_to.__repr__(), file=f)
-    print('index =', index.__repr__(), file=f)
-    print('map_addr =', map_addr.__repr__(), file=f)
-    print('bitmap =', bitmap.__repr__(), file=f)
+
+if __name__ == '__main__':
+    print('from array import array')
+    print('remap_from =', repr(remap_from))
+    print('remap_to =', repr(remap_to))
+    print('index =', repr(index))
+    print('map_addr =', repr(map_addr))
+    print('bitmap =', repr(bitmap))

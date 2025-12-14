@@ -1,2 +1,3 @@
 #!/bin/sh
+./update > font.py
 mpremote cp main.py font.py :
