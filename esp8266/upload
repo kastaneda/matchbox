@@ -1,0 +1,2 @@
+#!/bin/sh
+mpremote cp main.py font.py :
