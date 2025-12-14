@@ -5,6 +5,7 @@ import ssd1306
 import font
 
 
+@micropython.native
 def readglyph(c):
     i = font.remap_from.find(c)
     if i >= 0:
@@ -14,9 +15,11 @@ def readglyph(c):
         i = font.index.find('▯')
     addr0 = 0 if i == 0 else font.map_addr[i-1]
     addr1 = font.map_addr[i]
-    return memoryview(font.bitmap)[addr0:addr1]
+    #return memoryview(font.bitmap)[addr0:addr1]
+    return font.bitmap[addr0:addr1]
 
 
+@micropython.native
 def text2vlsb(text):
     out = b''
     for c in text:
@@ -57,9 +60,9 @@ class TextDisplay:
     
     def buf_flush(self):
         if self.line >= 0 and self.line < self.lines:
-            addr1 = self.disp.width * self.line
-            addr2 = addr1+len(self.linebuf_vlsb)
-            disp.buffer[addr1:addr2]=self.linebuf_vlsb
+            addr0 = self.disp.width * self.line
+            addr1 = addr0+len(self.linebuf_vlsb)
+            disp.buffer[addr0:addr1]=self.linebuf_vlsb
         self.linebuf = ''
         self.linebuf_vlsb = b''
         self.line += 1
@@ -101,6 +104,8 @@ class TextDisplay:
     def print_line(self, line):
         buf = ''
         for c in line:
+            if self.line > self.lines:
+                return
             if c.isspace():
                 if buf:
                     self.print_word(buf)
@@ -137,6 +142,7 @@ def show_page(disp, file_name, seek_bytes, skip_lines):
             skip_lines = 0
             prev_line = txt.line
             line = f.readline()
+            gc.collect()
     txt.show()
     return (seek_bytes, skip_lines)
 
