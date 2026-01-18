@@ -5,8 +5,8 @@ The font is defined in these images (plus metadata in JSON format).
 
 ![ASCII glyphs](block_ascii.png)
 
-English and Ukrainian are fully supported. Some other languages ​​may 
-be partially supported, as well as a certain number of punctuation and 
+English and Ukrainian are fully supported. Some other languages may
+be partially supported, as well as a certain number of punctuation and
 mathematical symbols.
 
 ![Punctuation glyphs](block_punctuation.png)
@@ -38,7 +38,7 @@ How to use it:
  3. Edit the image `test.png`
     - draw some glyphs
     - mark gaps between glyphs
-    ![ASCII glyphs](font/test.png)
+    ![ASCII glyphs](test.png)
  4. Edit metadata file `test.json`, set glyph lines you made
  5. Convert font images to the actual font:
     ```
